@@ -142,6 +142,29 @@ class DetectedObject:
                 #f"Dzik: {avg['dzik']:.2f}, "
                 #f"Sarna: {avg['sarna']:.2f}, "
                 #f"Kura: {avg['kura']:.2f}")
+                import time
+
+class Notifier:
+    def __init__(self):
+        self.last_notification_time = 0
+        self.cooldown_seconds = 20 * 60  # 20 minut
+        self.active = False
+
+    def notify(self, trigger, message):
+        now = time.time()
+
+        # Jeżeli trigger jest True i minęło 20 minut od ostatniego powiadomienia
+        if trigger and (now - self.last_notification_time) > self.cooldown_seconds:
+            self._show_message(message)
+            self.last_notification_time = now
+
+    def _show_message(self, message):
+        import lcd, image
+        img = image.Image(size=(320, 240))
+        img.draw_string(20, 100, message, scale=2, color=(255, 0, 0))
+        lcd.display(img)
+        time.sleep(5)
+        lcd.clear()
 
 
 
@@ -202,6 +225,8 @@ def main(labels = None, model_addr=0x300000, sensor_window=input_size, sensor_hm
 
 
     objects = DetectedObject()
+    notify = Notifier()
+
 
 
 
@@ -257,6 +282,8 @@ def main(labels = None, model_addr=0x300000, sensor_window=input_size, sensor_hm
                 img.draw_string(0,0, "%.2f : %s" %(pmax, labels[max_index].strip()), scale=2, color=(255, 0, 0))
                 #objects_cout.update(labels[max_index].strip)
             #img.draw_string(0, 200, "t:%dms" %(t), scale=2, color=(255, 0, 0))
+            if objects.get_averages_dzik() > 4.0 :
+
 
 
             img.draw_string(0, 30, "dzik: %.2f" % objects.get_averages_dzik() , scale=1.2, color=(255, 0, 0))
