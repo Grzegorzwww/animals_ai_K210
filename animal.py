@@ -77,6 +77,8 @@ class SimpleQueue:
     def popleft(self):
         if self.data:
             return self.data.pop(0)
+    def clean_all(self):
+        self.data.clear()
 
     def __len__(self):
         return len(self.data)
@@ -123,6 +125,13 @@ class DetectedObject:
             "sarna": len(self.sarna) / self.max_seconds,
             "kura": len(self.kura) / self.max_seconds
         }
+    def averages_clean_all(self):
+        self.dzik.clean_all()
+        self.sarna.clean_all()
+        self.kura.clean_all()
+        self.czlowiek.clean_all()
+
+
     def get_averages_dzik(self):
         return (len(self.dzik) / self.max_seconds)
 
@@ -142,28 +151,24 @@ class DetectedObject:
                 #f"Dzik: {avg['dzik']:.2f}, "
                 #f"Sarna: {avg['sarna']:.2f}, "
                 #f"Kura: {avg['kura']:.2f}")
-                import time
 
 class Notifier:
-    def __init__(self):
+    def __init__(self, time_to_wait):
         self.last_notification_time = 0
-        self.cooldown_seconds = 20 * 60  # 20 minut
+        self.cooldown_seconds = time_to_wait * 60  #
         self.active = False
 
-    def notify(self, trigger, message):
+    def notify(self, trigger, message, display):
         now = time.time()
-
         # Jeżeli trigger jest True i minęło 20 minut od ostatniego powiadomienia
         if trigger and (now - self.last_notification_time) > self.cooldown_seconds:
-            self._show_message(message)
+            self._show_message(message, display)
             self.last_notification_time = now
 
-    def _show_message(self, message):
-        import lcd, image
-        img = image.Image(size=(320, 240))
-        img.draw_string(20, 100, message, scale=2, color=(255, 0, 0))
-        lcd.display(img)
-        time.sleep(5)
+    def _show_message(self, message, display):
+        display.draw_string(10, 100, message, scale=2, color=(255, 0, 0))
+        lcd.display(display)
+        time.sleep(3)
         lcd.clear()
 
 
@@ -225,7 +230,7 @@ def main(labels = None, model_addr=0x300000, sensor_window=input_size, sensor_hm
 
 
     objects = DetectedObject()
-    notify = Notifier()
+    notify = Notifier(3)
 
 
 
@@ -278,11 +283,23 @@ def main(labels = None, model_addr=0x300000, sensor_window=input_size, sensor_hm
             if labels[max_index].strip() == "czlowiek" and pmax > 0.90 :
                 objects.update(4)
 
-            if pmax > 0.65 :
+            if pmax > 0.70:
                 img.draw_string(0,0, "%.2f : %s" %(pmax, labels[max_index].strip()), scale=2, color=(255, 0, 0))
+
                 #objects_cout.update(labels[max_index].strip)
             #img.draw_string(0, 200, "t:%dms" %(t), scale=2, color=(255, 0, 0))
             if objects.get_averages_dzik() > 4.0 :
+                objects.averages_clean_all()
+                notify.notify(True, "Wykryto: DZIKA !", img)
+            if objects.get_averages_sarna() > 4.0 :
+                objects.averages_clean_all()
+                notify.notify(True, "Wykryto: SARNA !", img)
+            if objects.get_averages_kura() > 4.0 :
+                objects.averages_clean_all()
+                notify.notify(True, "Wykryto: KURA !", img)
+            if objects.get_averages_czlowiek() > 5.5 :
+                objects.averages_clean_all()
+                notify.notify(True, "Wykryto: CZLOWIEK !", img)
 
 
 
@@ -290,6 +307,8 @@ def main(labels = None, model_addr=0x300000, sensor_window=input_size, sensor_hm
             img.draw_string(0, 60, "sarna %.2f"% objects.get_averages_sarna() , scale=1.2, color=(255, 0, 0))
             img.draw_string(0, 90, "kura %.2f" % objects.get_averages_kura() , scale=1.2, color=(255, 0, 0))
             img.draw_string(0, 120, "czlowiek %.2f" % objects.get_averages_czlowiek() , scale=1.2, color=(255, 0, 0))
+
+
             comm.send_classify_result(pmax, max_index, labels[max_index].strip())
             lcd.display(img)
     except Exception as e:
