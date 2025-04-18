@@ -8,9 +8,58 @@ from machine import UART
 from fpioa_manager import fm
 #from gsm_modem import GSMModem
 import time
+import uio
+from Maix import GPIO
 
 input_size = (224, 224)
 labels = ['sarna', 'dzik', 'kura', 'czlowiek']
+
+class IOController:
+    def __init__(self, pin, mode, fm, gpio):
+        """
+        Initialize the IOController for a specific pin.
+        :param pin: The pin number to control.
+        :param mode: The mode of the pin (e.g., fm.fpioa.GPIOHS0).
+        :param fm: The fpioa_manager module.
+        :param gpio: The GPIO module.
+        """
+        self.pin = pin
+        self.mode = mode
+        self.fm = fm
+        self.gpio = gpio
+        self._setup_pin()
+
+    def _setup_pin(self):
+        """
+        Configure the pin for GPIO use.
+        """
+        self.fm.register(self.pin, self.mode, force=True)
+        self.gpio_pin = self.gpio(self.mode, self.gpio.OUT)
+
+    def set_high(self):
+        """
+        Set the pin to HIGH.
+        """
+        self.gpio_pin.value(1)
+
+    def set_low(self):
+        """
+        Set the pin to LOW.
+        """
+        self.gpio_pin.value(0)
+
+    def toggle(self):
+        """
+        Toggle the pin state.
+        """
+        current_state = self.gpio_pin.value()
+        self.gpio_pin.value(1 - current_state)
+
+
+
+
+
+
 
 class GSMModem:
     def __init__(self, uart, phone_number='48796070732'):
@@ -171,11 +220,7 @@ class Notifier:
         time.sleep(3)
         lcd.clear()
 
-
-
-
 def lcd_show_except(e):
-    import uio
     err_str = uio.StringIO()
     sys.print_exception(e, err_str)
     err_str = err_str.getvalue()
@@ -231,6 +276,11 @@ def main(labels = None, model_addr=0x300000, sensor_window=input_size, sensor_hm
 
     objects = DetectedObject()
     notify = Notifier(3)
+
+    # Initialize IOController for pin 21 as output
+    io_out_21 = IOController(pin=21, mode=fm.fpioa.GPIOHS0, fm=fm, gpio=GPIO)
+    # Initialize IOController for pin 23 as output
+    io_out_23 = IOController(pin=23, mode=fm.fpioa.GPIOHS0, fm=fm, gpio=GPIO)
 
 
 
